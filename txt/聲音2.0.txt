@@ -1,0 +1,174 @@
+import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+import '../../flutter_flow/flutter_flow_util.dart';
+import '../../main.dart';
+import '../../trainmouth/trainmouth_widget.dart';
+import 'package:http/http.dart' as http;
+
+class speech_to_text extends StatefulWidget {
+  @override
+  State<speech_to_text> createState() => _ImageLabelViewState();
+}
+
+class _ImageLabelViewState extends State<speech_to_text> {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  String _text = ""; // 存储识别到的文本
+  bool _isListening = false;
+  bool _speechEnded = false; // 表示语音是否结束
+  String _responseText = ""; // 当检测到特定声音时显示的文本
+
+  @override
+  void initState() {
+    super.initState();
+    _requestMicrophonePermission(); // 请求麦克风权限
+  }
+
+  // 请求麦克风权限
+  void _requestMicrophonePermission() async {
+    if (await Permission.microphone.request().isGranted) {
+      print("麥克風權限已授予");
+    } else {
+      print("請授予麥克風權限");
+    }
+  }
+  // 开始监听语音
+  void _startListening() async {
+    try {
+      bool available = await _speech.initialize(
+        onStatus: (val) {
+          print('狀態: $val');
+          if (val == 'notListening') {
+            setState(() {
+              _isListening = false; // 更新状态
+              _speechEnded = true; // 语音结束
+            });
+          }
+        },
+      );
+
+      if (available) {
+        setState(() {
+          _isListening = true;
+          _text = "正在聆聽...";
+          _responseText = ""; // 清空之前的响应
+          _speechEnded = false; // 语音开始时设置为 false
+        });
+
+        _speech.listen(
+          onResult: (val) {
+            print('識別結果: ${val.recognizedWords}');
+            setState(() {
+              _text = val.recognizedWords; // 更新识别文本
+              _checkForSounds(_text); // 检查特定音节
+            });
+          },
+          localeId: 'en_US', // 设置为中文
+        );
+      } else {
+        setState(() {
+          _text = "語音辨識不可用，請檢查設備設置";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _text = '初始化語音辨識時出錯';
+      });
+    }
+  }
+  // 检查特定音节
+  void _checkForSounds(String recognizedText) {
+    if (recognizedText.toLowerCase().contains('papa papa')) {
+      setState(() {
+        _responseText = '好！'; // 更新响应文本为“好！”
+      });
+      print('偵測到聲音: pa');
+    } else if (recognizedText.toLowerCase().contains('tata tata')) {
+      setState(() {
+        _responseText = '不错！'; // 更新响应文本为“不错！”
+      });
+      print('偵測到聲音: ta');
+    } else if (recognizedText.toLowerCase().contains('caca caca')) {
+      setState(() {
+        _responseText = '太棒了！'; // 更新响应文本为“太棒了！”
+      });
+      print('偵測到聲音: ca');
+    }
+  }
+
+  // 停止监听语音
+  void _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false; // 停止监听
+      _speechEnded = true; // 语音结束
+      _text = ""; // 清空识别文本
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('語音辨識範例'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              '辨識文字:',
+              style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _text,
+              style: TextStyle(fontSize: 32, color: Colors.black),
+            ),
+            SizedBox(height: 20),
+            if (_responseText.isNotEmpty) // 如果响应文本不为空则显示
+              Text(
+                _responseText,
+                style: TextStyle(fontSize: 32, color: Colors.green),
+              ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isListening ? _stopListening : _startListening,
+              child: Text(_isListening ? '停止' : '開始'),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _speechEnded ? "語音辨識已結束" : "", // 提示语音识别是否结束
+              style: TextStyle(fontSize: 20, color: Colors.red),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+Future<void> endout9() async {
+  DateTime now = DateTime.now();
+  String formattedDate = DateFormat('yyyy-MM-dd').format(now);
+  var url;
+  if (Face_Detect_Number == 9) { //微笑
+    url = Uri.parse(ip + "train_mouthok.php");
+    print("初階,吞嚥");
+  }
+  final responce = await http.post(url, body: {
+    "time": formattedDate,
+    "account": FFAppState().accountnumber.toString(),
+    "action": FFAppState().mouth.toString(), //動作
+    "degree": "初階",
+    "parts": "吞嚥",
+    "times": "1", //動作
+    "coin_add": "5",
+  });
+  if (responce.statusCode == 200) {
+    print("ok");
+  } else {
+    print(responce.statusCode);
+    print("no");
+  }
+}

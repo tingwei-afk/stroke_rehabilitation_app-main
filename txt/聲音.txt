@@ -1,0 +1,116 @@
+import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: '語音識別示範',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: SpeechToTextPage(),
+    );
+  }
+}
+
+class SpeechToTextPage extends StatefulWidget {
+  @override
+  _SpeechToTextPageState createState() => _SpeechToTextPageState();
+}
+
+class _SpeechToTextPageState extends State<SpeechToTextPage> {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  String _text = ""; // 存儲識別的文本
+  bool _isListening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _requestMicrophonePermission(); // 請求麥克風權限
+  }
+
+  // 請求麥克風權限
+  void _requestMicrophonePermission() async {
+    if (await Permission.microphone.request().isGranted) {
+      print("麥克風權限已授予");
+    } else {
+      print("請授予麥克風權限");
+    }
+  }
+
+  // 開始聆聽語音
+  void _startListening() async {
+    try {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) => print('onError: ${val.errorMsg}'), // 錯誤日誌
+      );
+
+      if (available) {
+        setState(() {
+          _isListening = true;
+          _text = "正在聽取...";
+        });
+
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _text = val.recognizedWords; // 更新識別到的文字
+          }),
+          localeId: 'zh_CN', // 設置語言為中文
+        );
+      } else {
+        setState(() {
+          _text = "語音識別不可用，請檢查設備設置";
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _text = '初始化語音識別時發生錯誤: $e';
+      });
+    }
+  }
+
+  // 停止聆聽語音
+  void _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('語音識別示範'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              '識別的文本:',
+              style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _text,
+              style: TextStyle(fontSize: 32, color: Colors.black),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isListening ? _stopListening : _startListening,
+              child: Text(_isListening ? '停止' : '開始聆聽'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

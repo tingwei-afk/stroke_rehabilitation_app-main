@@ -1,0 +1,11 @@
+    //偵測判定
+    //
+    // double yDist = angle(
+    //     posedata[36]!, // 第一个点的 x 坐标
+    //     posedata[37]!, // 第一个点的 y 坐标
+    //     posedata[28]!, // 第二个点的 x 坐标
+    //     posedata[29]!, // 第二个点的 y 坐标
+    //     posedata[24]!, // 第二个点的 x 坐标
+    //     posedata[25]!, // 第二个点的 y 坐标
+    // );
+    // print("x方向的角度: ${yDist.toStringAsFixed(2)}");

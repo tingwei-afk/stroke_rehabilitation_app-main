@@ -1,0 +1,71 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import sounddevice as sd
+from scipy.signal import stft
+import queue  # 用於音訊數據的排隊
+import keyboard  # 用於檢查鍵盤輸入
+
+# 設定參數
+fs = 16000  # 取樣率
+nperseg = 256  # STFT 的窗口長度
+
+# 初始化音訊數據隊列
+data_queue = queue.Queue()
+
+# 初始化繪圖
+plt.ion()  # 開啟交互模式
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6))
+
+# 時間域波形圖
+waveform_line, = ax1.plot(np.zeros(1), color='b')
+ax1.set_xlim(0, 1)
+ax1.set_ylim(-1, 1)
+ax1.set_title('Real-time Waveform')
+ax1.set_xlabel('Time [s]')
+ax1.set_ylabel('Amplitude')
+
+# 頻譜圖
+img = ax2.imshow(np.zeros((nperseg // 2 + 1, 1)), aspect='auto', origin='lower', 
+                 extent=[0, 1, 0, fs // 2], vmin=0, vmax=1)
+ax2.set_ylabel('Frequency [Hz]')
+ax2.set_xlabel('Time [s]')
+ax2.set_title('Real-time STFT Magnitude')
+plt.colorbar(img, ax=ax2, label='Amplitude')
+
+def update_plot():
+    while True:
+        # 檢查隊列中是否有數據
+        if not data_queue.empty():
+            data = data_queue.get()  # 獲取音訊數據
+            # 更新時間域波形圖
+            waveform_line.set_ydata(data)
+            waveform_line.set_xdata(np.linspace(0, len(data) / fs, num=len(data)))  # 更新時間軸
+            ax1.set_xlim(0, len(data) / fs)
+
+            # 計算 STFT
+            f, t, Zxx = stft(data, fs, nperseg=nperseg)
+            # 更新頻譜圖
+            img.set_array(np.abs(Zxx))
+            plt.xlim(0, 1)
+            plt.ylim(0, fs // 2)
+            plt.draw()
+            plt.pause(0.01)  # 繪圖間隔
+
+print("開始監測聲音... (按 'q' 鍵停止)")
+
+def audio_callback(indata, frames, time, status):
+    if status:
+        print(status)
+    # 將音訊數據放入隊列
+    data_queue.put(indata[:, 0])  # 取第一個通道的音訊數據
+
+# 開始錄音
+with sd.InputStream(samplerate=fs, channels=1, callback=audio_callback):
+    # 在主線程中更新頻譜圖
+    try:
+        update_plot()
+    except KeyboardInterrupt:
+        print("停止監測。")
+
+plt.ioff()  # 關閉交互模式
+plt.show()  # 保持顯示最後一幀

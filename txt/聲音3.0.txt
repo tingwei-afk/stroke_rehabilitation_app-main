@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+import '../../flutter_flow/flutter_flow_util.dart';
+import '../../main.dart';
+import '../../trainmouth/trainmouth_widget.dart';
+import 'package:http/http.dart' as http;
+
+class speech_to_text extends StatefulWidget {
+  @override
+  State<speech_to_text> createState() => _ImageLabelViewState();
+}
+
+class _ImageLabelViewState extends State<speech_to_text> {
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  String _text = ""; // 初始為空，按下“開始”才顯示“正在聆聽...”
+  String _recognizedText = ""; // 存儲識別到的文本
+  bool _isListening = false;
+  bool _speechEnded = false; // 表示語音是否結束
+  String _responseText = ""; // 當檢測到特定聲音時顯示的文本
+
+  @override
+  void initState() {
+    super.initState();
+    _requestMicrophonePermission(); // 請求麥克風權限
+  }
+
+  // 請求麥克風權限
+  void _requestMicrophonePermission() async {
+    if (await Permission.microphone.request().isGranted) {
+      print("麥克風權限已授予");
+    } else {
+      print("請授予麥克風權限");
+    }
+  }
+
+  // 開始監聽語音
+  void _startListening() async {
+    bool available = await _speech.initialize(
+      onStatus: (val) {
+        print('狀態: $val');
+        if (val == 'done' || val == 'notListening') {
+          if (_isListening) {
+            _startListening(); // 自動重啟監聽
+          }
+        }
+      },
+    );
+
+    if (available) {
+      setState(() {
+        _isListening = true;
+        _text = "正在聆聽..."; // 按下“開始”後顯示“正在聆聽...”
+        _responseText = "";
+        _speechEnded = false;
+      });
+
+      _speech.listen(
+        onResult: (val) {
+          print('識別結果: ${val.recognizedWords}');
+          setState(() {
+            _recognizedText += val.recognizedWords + ' '; // 累加識別文本
+            _checkForSounds(_recognizedText); // 檢查特定音節
+          });
+        },
+        localeId: 'en_US', // 設定為中文
+        pauseFor: Duration(seconds: 5),
+        cancelOnError: false,
+      );
+    } else {
+      setState(() {
+        _text = "語音辨識不可用，請檢查設備設置";
+      });
+    }
+  }
+
+  // 檢查特定音節
+  void _checkForSounds(String recognizedText) {
+    if (recognizedText.toLowerCase().contains('papa papa')) {
+      setState(() {
+        _responseText = '好！';
+      });
+      print('偵測到聲音: pa');
+    } else if (recognizedText.toLowerCase().contains('tata tata')) {
+      setState(() {
+        _responseText = '不錯！';
+      });
+      print('偵測到聲音: ta');
+    } else if (recognizedText.toLowerCase().contains('caca caca')) {
+      setState(() {
+        _responseText = '太棒了！';
+      });
+      print('偵測到聲音: ca');
+    }
+    else if (recognizedText.toLowerCase().contains('pataka')) {
+      setState(() {
+        _responseText = '太棒了！'; // 更新響應文本為“太棒了！”
+      });
+      print('偵測到聲音: pataka');
+    }
+  }
+
+  // 停止監聽語音
+  void _stopListening() async {
+    await _speech.stop();
+    setState(() {
+      _isListening = false;
+      _speechEnded = true;
+      _text = "語音辨識已結束"; // 修改為語音辨識已結束
+      _recognizedText = ""; // 清空識別到的文本
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('語音辨識範例'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Text(
+              _text, // 顯示“正在聆聽...”或“語音辨識已結束”
+              style: TextStyle(fontSize: 24),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _recognizedText, // 顯示識別到的文本
+              style: TextStyle(fontSize: 32, color: Colors.black),
+            ),
+            SizedBox(height: 20),
+            if (_responseText.isNotEmpty) // 如果響應文本不為空則顯示
+              Text(
+                _responseText,
+                style: TextStyle(fontSize: 32, color: Colors.green),
+              ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _isListening ? _stopListening : _startListening,
+              child: Text(_isListening ? '停止' : '開始'),
+            ),
+            SizedBox(height: 20),
+            Text(
+              _speechEnded ? "語音辨識已結束" : "", // 提示語音識別是否結束
+              style: TextStyle(fontSize: 20, color: Colors.red),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
